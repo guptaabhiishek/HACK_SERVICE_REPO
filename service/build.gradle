@@ -1,0 +1,148 @@
+buildscript {
+    dependencies {
+        classpath('se.transmode.gradle:gradle-docker:1.2')
+    }
+}
+
+apply plugin: "war"
+apply plugin: "jacoco"
+apply plugin: 'spring-boot'
+apply plugin: "SwaggerGen"
+apply plugin: 'docker'
+
+task buildDocker(type: Docker, dependsOn: build) {
+    useApi false
+
+    push false
+    dockerfile file('src/main/docker/Dockerfile')
+    hostUrl 'http://localhost:4243'
+    doFirst {
+        copy {
+            from war
+            into stageDir
+        }
+    }
+}
+
+swaggerGen {
+    apiDefinition = project(":api")
+    namespace = "com.concur.swbservice"
+    swaggerConfig = "com.concur.swbservice.api.configuration.SwaggerConfiguration"
+}
+
+generateSwagger {
+    outputFile = file("build/resources/main/web/swagger.json")
+}
+
+generateSwagger.dependsOn project(":api").build
+
+jacocoTestReport {
+    reports {
+        xml {
+            enabled true
+            destination "${buildDir}/reports/jacoco/jacoco.xml"
+        }
+        csv {
+            enabled false
+            destination "${buildDir}/reports/jacoco/jacoco.csv"
+        }
+        html {
+            enabled true
+            destination "${buildDir}/reports/jacoco/html"
+        }
+    }
+}
+check.dependsOn jacocoTestReport
+
+configurations {
+    tests
+    providedRuntime
+    compile.exclude module: "spring-boot-starter-tomcat"
+}
+
+test {
+    jacoco {
+        excludes = [
+                "**/AppInitializer.class",
+                "**/RootConfiguration.class"
+        ]
+    }
+}
+
+task testJar(type: Jar, dependsOn: testClasses) {
+    baseName = "test-${project.archivesBaseName}"
+    from sourceSets.test.output
+    from sourceSets.main.output
+}
+
+artifacts {
+    tests testJar
+}
+
+jar {
+    baseName = "${theName}"
+    version = "${theVersion}"
+    manifest {
+        attributes("Implementation-Title": "${theName}")
+
+    }
+}
+
+dependencies {
+    compile 'org.hibernate:hibernate-validator:5.2.0.Final'
+    compile("org.springframework.boot:spring-boot-starter-web")
+    providedRuntime("org.springframework.boot:spring-boot-starter-undertow")
+    compile("org.springframework.boot:spring-boot-starter-actuator")
+    compile("org.springframework.boot:spring-boot-starter-jdbc")
+    compile("org.springframework.boot:spring-boot-starter-ws")
+
+    compile('org.springframework.data:spring-data-commons:1.10.0.RELEASE')
+    compile "com.concur.infrastructure.components:components-logging:${componentsVersion}"
+    compile "com.concur.infrastructure.components:components-logging-logback:${componentsVersion}"
+    compile "io.dropwizard.metrics:metrics-core:3.1.0"
+    compile "io.dropwizard.metrics:metrics-servlets:3.1.0"
+    compile "io.dropwizard.metrics:metrics-logback:3.1.0"
+    compile "org.apache.logging.log4j:log4j-to-slf4j:2.1"
+    compile "com.netflix.hystrix:hystrix-javanica:${hystrixVersion}"
+    compile "com.netflix.hystrix:hystrix-core:${hystrixVersion}"
+    compile "com.netflix.hystrix:hystrix-metrics-event-stream:${hystrixVersion}"
+    compile "com.netflix.hystrix:hystrix-request-servlet:${hystrixVersion}"
+    compile "com.netflix.hystrix:hystrix-codahale-metrics-publisher:${hystrixVersion}"
+    compile "com.netflix.hystrix:hystrix-metrics-event-stream:${hystrixVersion}"
+    compile "org.slf4j:log4j-over-slf4j:1.7.8"
+    compile "org.slf4j:jcl-over-slf4j:1.7.8"
+    compile "org.slf4j:slf4j-ext:1.7.8"
+    compile "ch.qos.logback:logback-core:1.1.2"
+    compile "ch.qos.logback:logback-classic:1.1.2"
+
+    compile 'org.apache.tomcat:tomcat-jdbc:7.0.54'
+
+    runtime 'com.h2database:h2'
+    compile "org.webjars:swagger-ui:2.1.8-M1"
+    compile "com.fasterxml.jackson.datatype:jackson-datatype-joda"
+    compile "com.fasterxml.jackson.dataformat:jackson-dataformat-xml"
+    compile 'org.codehaus.woodstox:woodstox-core-asl:4.4.1'
+
+    compile project(path: ':api')
+
+    compile files("${System.properties['java.home']}/../lib/tools.jar")
+    compile("org.projectlombok:lombok:1.14.4")
+
+    providedCompile 'javax.servlet:javax.servlet-api:3.1.0'
+    testCompile 'com.jayway.jsonpath:json-path:2.0.0'
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+}
+
+configurations.all {
+    resolutionStrategy {
+        force "io.springfox:springfox-spring-web:2.0.1.CNQR-SNAPSHOT"
+    }
+}
+
+bootRun {
+    doFirst {
+        systemProperties "spring.profiles.active": "Test-Mocked"
+    }
+}
+
+
