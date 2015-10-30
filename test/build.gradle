@@ -1,0 +1,60 @@
+buildscript {
+    repositories {
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "com.github.maiflai:gradle-scalatest:0.7"
+
+    }
+}
+
+apply plugin: "jacoco"
+apply plugin: 'scala'
+apply plugin: "com.github.maiflai.scalatest"
+apply plugin: "spring-boot"
+
+jacocoTestReport {
+    reports {
+        xml {
+            enabled true
+            destination "${buildDir}/reports/jacoco/jacoco.xml"
+        }
+        csv {
+            enabled false
+            destination "${buildDir}/reports/jacoco/jacoco.csv"
+        }
+        html {
+            enabled true
+            destination "${buildDir}/reports/jacoco/html"
+        }
+    }
+    sourceDirectories = project(":service").sourceSets.main.java
+    classDirectories = project(":service").sourceSets.main.output
+}
+check.dependsOn jacocoTestReport
+
+dependencies {
+    compile project(path: ':service')
+    compile 'org.scala-lang:scala-library:2.11.5'
+    testCompile 'org.scalatest:scalatest_2.11:2.2.4'
+    testCompile project(path: ':clients', configuration: 'javaClient')
+    testRuntime 'org.pegdown:pegdown:1.1.0'
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+}
+
+bootRepackage.enabled = false
+
+test {
+    doFirst {
+        System.setProperty("spring.profiles.active", "Test-Mocked")
+    }
+
+    jacoco {
+        excludes = [
+                "**/AppInitializer.class",
+                "**/RootConfiguration.class"
+        ]
+    }
+}
