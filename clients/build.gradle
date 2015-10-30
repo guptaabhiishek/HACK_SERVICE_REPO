@@ -1,0 +1,109 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven {
+            url "http://auto-util.rqa.concur.concurtech.org:8081/artifactory/repo/"
+        }
+        maven {
+            url "http://msprndart001.concur.concurtech.org:8081/artifactory/libs-snapshot/"
+        }
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath 'com.concur:swaggergradleplugin:1.0.4'
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:3.1.0"
+    }
+}
+
+apply plugin: "SwaggerGen"
+apply plugin: 'maven-publish'
+apply plugin: 'com.jfrog.artifactory'
+
+configurations {
+    javaClient
+}
+
+swaggerGen {
+    apiDefinition = project(":api")
+    namespace = "com.concur.swbservice"
+    swaggerConfig = "com.concur.swbservice.api.configuration.SwaggerConfiguration"
+    enableGenerateSwagger = false
+}
+
+generateSwaggerClients {
+    outputFolder = file(".")
+    languages = [CSHARP, JAVA]
+    baseNamespace = "com.concur.swbservice.client"
+}
+
+generateSwaggerClients.dependsOn project(":api").build
+
+build.dependsOn generateSwaggerClients
+
+task buildJava(type: GradleBuild) {
+    buildFile = 'java/build.gradle'
+    startParameter = new StartParameter()
+    tasks = ['clean', 'build']
+    dir = 'java'
+    startParameter.setProjectProperties(project.getRootProject().ext.properties)
+}
+
+dependencies {
+    javaClient "org.apache.httpcomponents:httpasyncclient:4.0.1"
+}
+
+artifacts {
+    javaClient file("java/build/libs/${theName}-client-${theVersion}.jar")
+}
+
+build.finalizedBy buildJava
+//Add notice for what needs installing to do .net build
+//build.finalizedBy project(":clients:dotNet").build
+
+clean {
+    delete += fileTree('java').include('**/*') + fileTree('dotNet').include('**/*')
+}
+
+def env = System.getenv()
+
+def artifactory_user = rootProject.hasProperty('artifactory_user') ? rootProject.property('artifactory_user') :  env.get('artifactory_user')
+def artifactory_password = rootProject.hasProperty('artifactory_password') ? rootProject.property('artifactory_password') : env.get('artifactory_password')
+//
+String repo = clientVersion.endsWith('-SNAPSHOT') ? 'libs-snapshot-local' : 'libs-release-local'
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId "${theGroup}"
+            artifactId "${theName}"
+            version "${theVersion}"
+
+            artifact file("java/build/libs/${theName}-client-${theVersion}-all.jar")
+        }
+    }
+    repositories {
+        maven {
+            credentials {
+                username "${artifactory_user}"
+                password "${artifactory_password}"
+            }
+            url "${concurRepoUrl}/${repo}"
+        }
+    }
+}
+
+artifactory {
+    contextUrl = "${concurRepoUrl}"
+    publish {
+        repository {
+            repoKey = "${repo}"
+        }
+    }
+}
+
+artifactoryPublish {
+    publications(publishing.publications.mavenJava)
+}

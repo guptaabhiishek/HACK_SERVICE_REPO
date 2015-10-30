@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: swbservice
+spec:
+  ports:
+    -
+      port: 8080 # internal port for communication between internal pods and services using the service name
+      targetPort: 8080 # port on the POD
+  selector:
+    service: swbservice
+  type: ClusterIP
