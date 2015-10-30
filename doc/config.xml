@@ -1,0 +1,116 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Builds the swbservice repo&#xd;
+&#xd;
+Currently branch coverage is off as the jacoco plugin has a bug when there is no branch complexity reporting as 0</description>
+  <logRotator class="hudson.tasks.LogRotator">
+    <daysToKeep>-1</daysToKeep>
+    <numToKeep>20</numToKeep>
+    <artifactDaysToKeep>-1</artifactDaysToKeep>
+    <artifactNumToKeep>-1</artifactNumToKeep>
+  </logRotator>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.24">
+      <autoRebuild>false</autoRebuild>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <com.synopsys.arc.jenkinsci.plugins.jobrestrictions.jobs.JobRestrictionProperty plugin="job-restrictions@0.4"/>
+    <EnvInjectJobProperty plugin="envinject@1.91.2">
+      <info>
+        <propertiesFilePath>/var/lib/jenkins/ghostbusters-sonar.properties</propertiesFilePath>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+      <on>true</on>
+      <keepJenkinsSystemVariables>true</keepJenkinsSystemVariables>
+      <keepBuildVariables>true</keepBuildVariables>
+      <overrideBuildParameters>false</overrideBuildParameters>
+      <contributors/>
+    </EnvInjectJobProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.3.5">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>git@cm-git.concurtech.net:101040/muServiceTemplate.git</url><!-- Replace this with the forked project url -->
+        <credentialsId></credentialsId><!-- You will need to setup a project key, please read the configure git section in SDLC.md -->
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/*</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions>
+      <hudson.plugins.git.extensions.impl.WipeWorkspace/>
+    </extensions>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <jdk>JDK 8u25</jdk>
+  <triggers>
+    <com.dabsquared.gitlabjenkins.GitLabPushTrigger plugin="gitlab-plugin@1.1.19-SNAPSHOT">
+      <spec></spec>
+      <triggerOnPush>true</triggerOnPush>
+      <triggerOnMergeRequest>true</triggerOnMergeRequest>
+      <triggerOpenMergeRequestOnPush>true</triggerOpenMergeRequestOnPush>
+      <ciSkip>false</ciSkip>
+      <setBuildDescription>true</setBuildDescription>
+      <addNoteOnMergeRequest>true</addNoteOnMergeRequest>
+      <allowAllBranches>false</allowAllBranches>
+      <allowedBranches/>
+    </com.dabsquared.gitlabjenkins.GitLabPushTrigger>
+  </triggers>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.plugins.gradle.Gradle plugin="gradle@1.24">
+      <description>Build service and execute unit test/code coverage</description>
+      <switches>--info</switches>
+      <tasks>clean
+build</tasks>
+      <rootBuildScriptDir></rootBuildScriptDir>
+      <buildFile></buildFile>
+      <gradleName>(Default)</gradleName>
+      <useWrapper>true</useWrapper>
+      <makeExecutable>true</makeExecutable>
+      <fromRootBuildScriptDir>true</fromRootBuildScriptDir>
+      <useWorkspaceAsHome>false</useWorkspaceAsHome>
+    </hudson.plugins.gradle.Gradle>
+  </builders>
+  <publishers>
+    <hudson.tasks.junit.JUnitResultArchiver plugin="junit@1.6">
+      <testResults>service/build/test-results/*.xml, test/build/test-results/*.xml</testResults>
+      <keepLongStdio>false</keepLongStdio>
+      <healthScaleFactor>1.0</healthScaleFactor>
+    </hudson.tasks.junit.JUnitResultArchiver>
+    <hudson.plugins.jacoco.JacocoPublisher plugin="jacoco@1.0.19">
+      <execPattern>service/build/jacoco/test.exec</execPattern>
+      <classPattern>service/build/classes/main/com/concur/**</classPattern>
+      <sourcePattern>service/src/main/java</sourcePattern>
+      <inclusionPattern></inclusionPattern>
+      <exclusionPattern>**/Application.class, **/*Configuration.class</exclusionPattern>
+      <minimumInstructionCoverage>80</minimumInstructionCoverage>
+      <minimumBranchCoverage>0</minimumBranchCoverage>
+      <minimumComplexityCoverage>80</minimumComplexityCoverage>
+      <minimumLineCoverage>80</minimumLineCoverage>
+      <minimumMethodCoverage>80</minimumMethodCoverage>
+      <minimumClassCoverage>100</minimumClassCoverage>
+      <maximumInstructionCoverage>80</maximumInstructionCoverage>
+      <maximumBranchCoverage>0</maximumBranchCoverage>
+      <maximumComplexityCoverage>80</maximumComplexityCoverage>
+      <maximumLineCoverage>80</maximumLineCoverage>
+      <maximumMethodCoverage>80</maximumMethodCoverage>
+      <maximumClassCoverage>100</maximumClassCoverage>
+      <changeBuildStatus>false</changeBuildStatus>
+    </hudson.plugins.jacoco.JacocoPublisher>
+  </publishers>
+  <buildWrappers>
+    <org.jenkinsci.plugins.buildnamesetter.BuildNameSetter plugin="build-name-setter@1.3">
+      <template>#${BUILD_NUMBER}: ${GIT_BRANCH, fullName=true}</template>
+    </org.jenkinsci.plugins.buildnamesetter.BuildNameSetter>
+  </buildWrappers>
+</project>
